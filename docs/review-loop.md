@@ -26,7 +26,9 @@ same steps by hand.
    description, and writes `<file>.md` (ready to post, headed `### Codex review (<model>, <effort>) of <sha>`) and
    `<file>.md.json` (verdict and findings, schema
    [`review-output.schema.json`](../.claude/skills/pr-review-loop/review-output.schema.json)). Its last line is
-   `verdict: approve|needs-attention`; exit 3 names the failed step. Env overrides: `CODEX_BIN`,
+   `verdict: approve|needs-attention`; exit 3 names the failed step. It refuses to write a review that quotes a
+   value of any `.env` file (tracked, untracked or ignored); tests:
+   [`tests/test_codex_review.py`](../tests/test_codex_review.py). Env overrides: `CODEX_BIN`,
    `CODEX_REVIEW_MODEL`, `CODEX_REVIEW_EFFORT`, `CODEX_REVIEW_BASE`, `CODEX_REVIEW_TIMEOUT`.
 3. Post the review as is: `gh pr comment <n> --body-file <file>.md`.
 4. Answer every finding in one comment: line 1 the signature, line 2 `Answers to Codex review of <sha>:`, then one
