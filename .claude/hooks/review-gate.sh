@@ -69,12 +69,19 @@ gate_review() { # the Codex review loop ran on the PR head (docs/review-loop.md)
   fi
   [[ "$verdict" == "**Verdict: approve**" ]] && { rm -f "$out"; return 0; }
   # needs-attention: every finding answered (soft rule), or the loop stopped and told the owner. Only comments posted
-  # after this review count: an answer or an escalation of an earlier round says nothing about this one.
-  if jq -s -r --argjson at "$at" '.[$at + 1:][] | .body' <<<"$comments" \
-      | grep -qE "^(Answers to Codex review of $sha|Loop stopped:)"; then
+  # after this review count: an answer or an escalation of an earlier round says nothing about this one. An answer
+  # needs one "- " line per finding of the review ("- **P<n>**" lines) after its "Answers to Codex review of" line.
+  if jq -s -e --argjson at "$at" --arg sha "$sha" '
+      def lines: gsub("\r"; "") | split("\n");
+      (.[$at].body | lines | map(select(test("^- \\*\\*P[0-2]\\*\\*"))) | length) as $n
+      | any(.[$at + 1:][] | .body | lines;
+          any(.[]; startswith("Loop stopped:"))
+          or ((to_entries | map(select(.value | startswith("Answers to Codex review of \($sha)"))) | first | .key) as $k
+              | $k != null and ((.[$k + 1:] | map(select(startswith("- "))) | length) >= $n)))' \
+      <<<"$comments" >/dev/null; then
     rm -f "$out"; return 0
   fi
-  echo "Codex review of $sha on PR #$num is needs-attention and no 'Answers to Codex review of $sha' comment exists. Fix or answer every finding (docs/review-loop.md)." >"$out"
+  echo "Codex review of $sha on PR #$num is needs-attention and no 'Answers to Codex review of $sha' comment answers each of its findings on its own '- ' line. Fix or answer every finding (docs/review-loop.md)." >"$out"
   fail review . "/loop /pr-review-loop $num" "$out"
 }
 
