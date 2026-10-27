@@ -1,0 +1,19 @@
+{
+  "name": "doc-gardener",
+  "version": "0.3.0",
+  "description": "Repository-agnostic Markdown knowledge base: guided setup, task routing, code-docs sync, audits, safe moves.",
+  "author": {
+    "name": "bpteam",
+    "url": "https://github.com/bpteam"
+  },
+  "license": "MIT",
+  "keywords": [
+    "documentation",
+    "knowledge-base",
+    "markdown",
+    "docs-sync",
+    "wiki"
+  ],
+  "repository": "https://github.com/bpteam/doc-gardener",
+  "homepage": "https://github.com/bpteam/doc-gardener"
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "doc-gardener",
+  "description": "Doc Gardener plugin marketplace.",
+  "owner": {
+    "name": "bpteam",
+    "url": "https://github.com/bpteam"
+  },
+  "plugins": [
+    {
+      "name": "doc-gardener",
+      "description": "Set up, route, sync and audit a repository's Markdown knowledge base.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

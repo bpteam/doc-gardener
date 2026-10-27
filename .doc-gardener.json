@@ -1,0 +1,5 @@
+{
+  "exclude": ["commands/**"],
+  "allow_orphans": ["skills/doc-gardener/assets/templates/**"],
+  "code_ref_ignore": ["tools/**", ".claude/**"]
+}

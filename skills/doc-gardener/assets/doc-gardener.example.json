@@ -1,0 +1,10 @@
+{
+  "include": ["README.md", "handbook", "packages/*/docs"],
+  "exclude": ["**/generated/**"],
+  "entrypoints": ["README.md", "handbook/INDEX.md"],
+  "allow_orphans": ["handbook/archive/**"],
+  "metadata_profile": "none",
+  "mappings": [
+    {"code": "packages/core/**", "docs": ["packages/core/docs/**"]}
+  ]
+}
