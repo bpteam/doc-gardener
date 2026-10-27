@@ -112,8 +112,8 @@ env_values() {
   done
 }
 
-# The reviewer can read ignored files (local env files with secrets); the review is posted on GitHub.
-# Refuse to hand over a review that contains a value of any ignored env file.
+# The reviewer can read every local file, env files with secrets among them; the review is posted on GitHub.
+# Refuse to hand over a review that contains a value of any env file: tracked, untracked or ignored.
 while IFS= read -r envfile; do
   while IFS= read -r value; do
     [[ ${#value} -ge 8 ]] || continue
@@ -122,6 +122,6 @@ while IFS= read -r envfile; do
       fail "review contains a value from $envfile; not writing it. Check $json by hand, never post it"
     fi
   done < <(env_values "$envfile")
-done < <(git ls-files --others --ignored --exclude-standard | grep -E '(^|/)\.env[^/]*$|\.env$' || true)
+done < <(git ls-files --cached --others | sort -u | grep -E '(^|/)\.env[^/]*$|\.env$' || true)
 
 echo "verdict: $(jq -r .verdict "$json") ($model/$effort on $sha, $(jq '.findings | length' "$json") findings): $out"
