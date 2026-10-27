@@ -265,6 +265,11 @@ class TestParsingFixes(unittest.TestCase):
         self.add('README.md', '[x](docs/a.md#foo_bar) [y](docs/a.md#init-hooks)\n')
         self.assertEqual(self.check()['errors'], [])
 
+    def test_anchor_keeps_inline_code(self):
+        self.add('docs/a.md', '# A\n## What `--auto-author` does\n[x](#what---auto-author-does)\n')
+        self.assertEqual(self.check()['errors'], [])
+        self.assertIn('what---auto-author-does', mod.heading_anchors(['## What `--auto-author` does']))
+
     def test_setext_and_html_anchors(self):
         self.add('docs/a.md', 'Title\n=====\n\nSub part\n--------\n<a id="Custom-Id"></a>\n<h3 name="legacy">L</h3>\n')
         self.add('README.md', '[a](docs/a.md#title) [b](docs/a.md#sub-part) [c](docs/a.md#Custom-Id) [d](docs/a.md#legacy)\n')
@@ -486,6 +491,67 @@ class TestWorkflowCommands(unittest.TestCase):
             mod.move(self.root, [('docs/a.md', 'docs/b.md')], True)
         with self.assertRaises(ValueError):
             mod.move(self.root, [('docs/a.md', '../escape.md')], True)
+
+    def test_move_refuses_chained_overlap(self):
+        # Moves are applied one by one: b.md would be overwritten before it moves to c.md.
+        self.add('a.md', 'alpha\n')
+        self.add('b.md', 'beta\n')
+        with self.assertRaisesRegex(ValueError, 'destination exists'):
+            mod.move(self.root, [('a.md', 'b.md'), ('b.md', 'c.md')], True)
+        self.assertEqual(self.read('a.md'), 'alpha\n')
+        self.assertEqual(self.read('b.md'), 'beta\n')
+        self.assertFalse((self.root / 'c.md').exists())
+
+    def test_move_into_subfolder_still_rewrites(self):
+        self.add('a.md', '# A\n[b](b.md)\n')
+        self.add('b.md', '# B\n[a](a.md)\n')
+        r = mod.move(self.root, [('a.md', 'docs/a.md')], True)
+        self.assertTrue(r['applied'])
+        self.assertEqual(r['broken_after'], [])
+        self.assertFalse((self.root / 'a.md').exists())
+        self.assertIn('[b](../b.md)', self.read('docs/a.md'))
+        self.assertIn('[a](docs/a.md)', self.read('b.md'))
+
+    def _committed_code_doc(self):
+        git(self.root, 'init', '-q')
+        self.add('src/thing.ts', 'export const x = 1\n')
+        self.add('src/other.ts', 'export const y = 1\n')
+        self.add('code.md', '# Code\nUses `src/thing.ts`.\n')
+        git(self.root, 'add', '.')
+        git(self.root, 'commit', '-qm', 'base')
+
+    def test_impact_routes_deleted_code(self):
+        self._committed_code_doc()
+        git(self.root, 'rm', '-q', 'src/thing.ts')
+        r = mod.impact(self.root, 'HEAD', {})
+        self.assertEqual(r['referencing_docs'], {'src/thing.ts': ['code.md']})
+        report = mod.build(self.root, [], {}, code_refs=True)
+        self.assertIn('src/thing.ts', report['missing_code_refs']['code.md'])
+        self.assertEqual([w['type'] for w in report['warnings']], ['stale_code_ref'])
+
+    def test_impact_deleting_unmentioned_code_routes_nothing(self):
+        self._committed_code_doc()
+        git(self.root, 'rm', '-q', 'src/other.ts')
+        r = mod.impact(self.root, 'HEAD', {})
+        self.assertEqual(r['referencing_docs'], {})
+        self.assertEqual(r['unrouted_code_changes'], ['src/other.ts'])
+
+    def test_impact_routes_renamed_code_by_old_path(self):
+        self._committed_code_doc()
+        git(self.root, 'mv', 'src/thing.ts', 'src/renamed.ts')
+        r = mod.impact(self.root, 'HEAD', {})
+        self.assertEqual(r['referencing_docs'], {'src/thing.ts': ['code.md']})
+        self.assertIn('src/renamed.ts', r['unrouted_code_changes'])
+
+    def test_check_changed_sees_renamed_doc(self):
+        git(self.root, 'init', '-q')
+        self.add('docs/old.md', '# Old\n')
+        self.add('docs/linker.md', '# L\n[o](old.md)\n')
+        git(self.root, 'add', '.')
+        git(self.root, 'commit', '-qm', 'base')
+        git(self.root, 'mv', 'docs/old.md', 'docs/new.md')
+        r = mod.scope_to_changes(self.root, 'HEAD', {}, mod.build(self.root, [], {}))
+        self.assertEqual([(e['file'], e['type']) for e in r['errors']], [('docs/linker.md', 'broken_link')])
 
     def test_index_check_managed_and_manual(self):
         self.add('docs/a.md', '# A\nAbout component A in detail.\n')

@@ -141,7 +141,7 @@ python3 skills/doc-gardener/scripts/docgraph.py index  --root /path/to/repo --di
 | Backlinks, orphans, reachability from entrypoints, graph export (json/dot) | implemented, tested |
 | Exact duplicates, identical sections, near-duplicate pages, duplicate titles/ids | implemented, tested (near/section = triage) |
 | Stale code references (`path/like.ext` mentions, links to code) | implemented, tested (advisory) |
-| Change impact without config (docs referencing changed code) + optional mappings; incremental `check --changed` | implemented, tested |
+| Change impact without config (docs referencing changed, deleted or renamed code) + optional mappings; incremental `check --changed` | implemented, tested |
 | Task routing to pages and sections (`route`) | implemented, tested (lexical, no embeddings) |
 | Repository inventory, draft config, open questions (`scan`, `init`) | implemented, tested |
 | Safe moves with link rewriting and follow-up report (`move`) | implemented, tested |

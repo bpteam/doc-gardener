@@ -417,6 +417,18 @@ def resolve_code_ref(root: Path, source: Path, token: str, with_base: bool = Fal
         base = base.parent
 
 
+def code_ref_candidates(root: Path, source: Path, token: str) -> list[str]:
+    """Every repository path a mention could mean (page folder and each ancestor), existing or not."""
+    out, base = [], source.parent
+    while True:
+        cand = (base / token).resolve()
+        if inside(root, cand):
+            out.append(rel(cand, root))
+        if base == root or root not in base.parents:
+            return out
+        base = base.parent
+
+
 def words(text: str) -> list[str]:
     return [w.lower() for w in WORD.findall(text)]
 
@@ -548,6 +560,7 @@ def build(root: Path, selected: list[str], cfg: dict, orphans=False, duplicates=
     inline_cache: dict[Path, list[str]] = {}
     document_ids: dict[str, list[str]] = defaultdict(list)
     ignore_refs = cfg.get('code_ref_ignore', [])
+    missing_refs: dict[str, set[str]] = defaultdict(set)  # page -> candidate paths of mentions that do not exist
     for p in docs:
         r = rel(p, root)
         try:
@@ -558,7 +571,7 @@ def build(root: Path, selected: list[str], cfg: dict, orphans=False, duplicates=
         lines = mask_source(content)
         content_cache[p] = lines
         inline_cache[p] = mask_source(content, keep_inline=True)
-        cache[p] = heading_anchors(lines)
+        cache[p] = heading_anchors(inline_cache[p])
         if policy:
             page_warnings, doc_id = check_page_policy(root, p, content, lines, cfg)
             warnings.extend(page_warnings)
@@ -642,7 +655,9 @@ def build(root: Path, selected: list[str], cfg: dict, orphans=False, duplicates=
                 if found:
                     if not is_doc(found.name):
                         refs[r].add(rel(found, root))
-                elif code_refs:
+                    continue
+                missing_refs[r].update(code_ref_candidates(root, p, token))
+                if code_refs:
                     warnings.append(issue('stale_code_ref', r, n, f'Referenced path does not exist: {token}', token))
 
     if policy:
@@ -713,6 +728,7 @@ def build(root: Path, selected: list[str], cfg: dict, orphans=False, duplicates=
         'backlinks': {k: sorted(backlinks[k]) for k in sorted(names)},
         'relationships': {k: relationships.get(k, {}) for k in sorted(names)},
         'code_refs': {k: sorted(refs[k]) for k in sorted(names) if refs[k]},
+        'missing_code_refs': {k: sorted(missing_refs[k]) for k in sorted(names) if missing_refs[k]},
         'errors': errors, 'warnings': warnings,
         'limitations': 'Static Markdown approximation, not semantic truth or a complete CommonMark parser.'
     }
@@ -721,7 +737,8 @@ def build(root: Path, selected: list[str], cfg: dict, orphans=False, duplicates=
 # ---------------------------------------------------------------- git impact
 
 def git_changes(root: Path, base: str) -> set[str]:
-    command = ['git', '-C', str(root), 'diff', '--relative', '--name-only', '-z', '--no-ext-diff', base, '--']
+    command = ['git', '-C', str(root), 'diff', '--relative', '--name-only', '--no-renames', '-z', '--no-ext-diff',
+               base, '--']  # --no-renames: a rename also lists its old path
     ret = subprocess.run(command, capture_output=True, check=False)
     if ret.returncode:
         raise ValueError(ret.stderr.decode('utf-8', 'replace').strip() or 'git diff failed')
@@ -748,7 +765,11 @@ def impact(root: Path, base: str, cfg: dict, report: dict | None = None) -> dict
                           for q in rule.get('docs', [])})
         if matches:
             mapped[p] = matches
-        hits = sorted(d for d, targets in report['code_refs'].items() if any(_covers(t, p) for t in targets))
+        hits = {d for d, targets in report['code_refs'].items() if any(_covers(t, p) for t in targets)}
+        if not (root / p).exists():  # deleted or renamed away: mentions of it no longer resolve
+            hits |= {d for d, targets in report.get('missing_code_refs', {}).items()
+                     if any(_covers(t, p) for t in targets)}
+        hits = sorted(hits)
         if hits:
             referencing[p] = hits
     linking = {d: report['backlinks'][d] for d in docs if report['backlinks'].get(d)}
@@ -1137,7 +1158,7 @@ def plan_moves(root: Path, pairs: list[tuple[str, str]]) -> tuple[dict[Path, Pat
     for s, d in file_map.items():
         if targets[d] > 1:
             raise ValueError(f'move: two sources map to {rel(d, root)}')
-        if d.exists() and d not in file_map:
+        if d.exists():  # also when d is another source of this batch: moves are applied one by one, not staged
             raise ValueError(f'move: destination exists: {rel(d, root)}')
         if s == d:
             raise ValueError(f'move: source equals destination: {rel(s, root)}')
