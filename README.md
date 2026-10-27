@@ -111,6 +111,8 @@ Neither method installs hooks, CI or project rules. For reliable use run `/doc-g
 - [`skills/doc-gardener/assets/AGENTS_SNIPPET.md`](skills/doc-gardener/assets/AGENTS_SNIPPET.md) — activation rule; [`skills/doc-gardener/assets/templates/`](skills/doc-gardener/assets/templates/) — optional page examples.
 - [`.claude-plugin/`](.claude-plugin/) and [`commands/`](commands/) — Claude Code plugin manifest, marketplace and slash commands.
 - [`skills/doc-gardener/scripts/docgraph.py`](skills/doc-gardener/scripts/docgraph.py) — the deterministic tool (single file, stdlib only, Python 3.10+).
+- [`AGENTS.md`](AGENTS.md) — rules for agents working on this repository.
+- [`docs/review-loop.md`](docs/review-loop.md) — how every PR here is reviewed by the local Codex CLI before the owner merges; [`docs/review-guidelines.md`](docs/review-guidelines.md) — what the reviewer checks.
 
 ## Modes
 
