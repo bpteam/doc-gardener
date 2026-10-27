@@ -25,7 +25,7 @@ Each round, in the PR's worktree, on the pushed head of the PR:
 5. Findings (`<file>.json`): fix each real one with a test; a finding you disagree with, or cannot reproduce from
    the code (low confidence, marked as an inference), gets the reason instead. Never fix only to silence it. One PR
    comment answers every finding: line 1 `🤖 **Claude Code** (agent, posted from the owner's account):`, line 2
-   `Answers to Codex review of <sha>:` (the Stop hook looks for it), then one line per finding. Run the
+   `Answers to Codex review of <sha>:` (the Stop hook looks for it), then one `- ` line per finding (the hook counts them). Run the
    affected tests, then the repo's checks; push. Next round right away.
 6. Round 3 still has a finding not answered, or a finding is a product decision: a signed PR comment with a line
    `Loop stopped: <why>` and the open findings with both positions, notify the owner, end the loop.

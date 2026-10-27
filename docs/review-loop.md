@@ -30,7 +30,7 @@ same steps by hand.
    `CODEX_REVIEW_MODEL`, `CODEX_REVIEW_EFFORT`, `CODEX_REVIEW_BASE`, `CODEX_REVIEW_TIMEOUT`.
 3. Post the review as is: `gh pr comment <n> --body-file <file>.md`.
 4. Answer every finding in one comment: line 1 the signature, line 2 `Answers to Codex review of <sha>:`, then one
-   line per finding: fixed (with a test) or the reason it is not. Never change code only to silence a finding.
+   `- ` line per finding, in the review's order: fixed (with a test) or the reason it is not. Never change code only to silence a finding.
    Run the tests and checks from [AGENTS.md](../AGENTS.md), push, next round.
 5. Stop by the table below.
 
@@ -52,7 +52,8 @@ and the loop goes on from round 1.
 [`.claude/hooks/review-gate.sh`](../.claude/hooks/review-gate.sh), registered in
 [`.claude/settings.json`](../.claude/settings.json), blocks Claude Code from finishing while the open PR of the
 current branch has no Codex review of its head (matched by tree, so a squash keeps the review). It passes on
-`approve`, or on `needs-attention` followed by an `Answers to Codex review of <sha>` or `Loop stopped:` comment; only
+`approve`, or on `needs-attention` followed by a `Loop stopped:` comment or an `Answers to Codex review of <sha>` comment with at least as many
+`- ` lines after that header as the review has findings (`- **P<n>**` lines); only
 comments by the PR author (the owner's account the loop posts from) count, so another account cannot fake a review
 or an answer; no PR passes; a `gh` error blocks. Tests: [`tests/test_review_gate.py`](../tests/test_review_gate.py). It blocks once per stop, never loops. It is a reminder, not a security boundary.
 

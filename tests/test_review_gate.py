@@ -46,8 +46,13 @@ class ReviewGateTest(unittest.TestCase):
         return subprocess.run(["bash", str(HOOK)], cwd=self.repo, env=self.env, input='{"stop_hook_active":false}',
                               capture_output=True, text=True).returncode
 
-    def review(self, verdict):
-        return f"### Codex review (gpt-6-luna, high) of {self.sha[:7]}\n\n**Verdict: {verdict}**. x"
+    def review(self, verdict, findings=0):
+        body = f"### Codex review (gpt-6-luna, high) of {self.sha[:7]}\n\n**Verdict: {verdict}**. x\n"
+        return body + "".join(f"\n- **P1** `a.py:{i + 1}` bug {i}\n  fails\n  Fix: y" for i in range(findings))
+
+    def answer(self, lines):
+        return f"🤖 **Claude Code** (agent):\r\nAnswers to Codex review of {self.sha[:7]}:\r\n" + \
+            "".join(f"- answer {i}\r\n" for i in range(lines))
 
     def test_no_review_blocks(self):
         self.assertEqual(self.gate([]), 2)
@@ -56,16 +61,26 @@ class ReviewGateTest(unittest.TestCase):
         self.assertEqual(self.gate([("owner", self.review("approve"))]), 0)
 
     def test_answered_needs_attention_passes(self):
-        answer = f"🤖 **Claude Code** (agent):\nAnswers to Codex review of {self.sha[:7]}:\n- fixed"
-        self.assertEqual(self.gate([("owner", self.review("needs-attention")), ("owner", answer)]), 0)
+        self.assertEqual(self.gate([("owner", self.review("needs-attention", 2)), ("owner", self.answer(2))]), 0)
+
+    def test_answer_without_a_line_per_finding_blocks(self):
+        self.assertEqual(self.gate([("owner", self.review("needs-attention", 2)), ("owner", self.answer(0))]), 2)
+        self.assertEqual(self.gate([("owner", self.review("needs-attention", 2)), ("owner", self.answer(1))]), 2)
+
+    def test_answer_to_an_earlier_review_blocks(self):
+        comments = [("owner", self.answer(1)), ("owner", self.review("needs-attention", 1))]
+        self.assertEqual(self.gate(comments), 2)
+
+    def test_loop_stopped_passes(self):
+        stopped = "🤖 **Claude Code** (agent):\nLoop stopped: product decision"
+        self.assertEqual(self.gate([("owner", self.review("needs-attention", 1)), ("owner", stopped)]), 0)
 
     def test_unanswered_needs_attention_blocks(self):
-        self.assertEqual(self.gate([("owner", self.review("needs-attention"))]), 2)
+        self.assertEqual(self.gate([("owner", self.review("needs-attention", 1))]), 2)
 
     def test_answer_from_another_account_blocks(self):
-        answer = f"Answers to Codex review of {self.sha[:7]}:"
-        self.assertEqual(self.gate([("owner", self.review("needs-attention")), ("stranger", answer)]), 2)
-        self.assertEqual(self.gate([("owner", self.review("needs-attention")), ("stranger", "Loop stopped: x")]), 2)
+        self.assertEqual(self.gate([("owner", self.review("needs-attention", 1)), ("stranger", self.answer(1))]), 2)
+        self.assertEqual(self.gate([("owner", self.review("needs-attention", 1)), ("stranger", "Loop stopped: x")]), 2)
 
     def test_review_from_another_account_blocks(self):
         self.assertEqual(self.gate([("stranger", self.review("approve"))]), 2)
