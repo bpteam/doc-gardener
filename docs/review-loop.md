@@ -52,8 +52,9 @@ and the loop goes on from round 1.
 [`.claude/hooks/review-gate.sh`](../.claude/hooks/review-gate.sh), registered in
 [`.claude/settings.json`](../.claude/settings.json), blocks Claude Code from finishing while the open PR of the
 current branch has no Codex review of its head (matched by tree, so a squash keeps the review). It passes on
-`approve`, or on `needs-attention` followed by an `Answers to Codex review of <sha>` or `Loop stopped:` comment; no
-PR passes; a `gh` error blocks. It blocks once per stop, never loops. It is a reminder, not a security boundary.
+`approve`, or on `needs-attention` followed by an `Answers to Codex review of <sha>` or `Loop stopped:` comment; only
+comments by the PR author (the owner's account the loop posts from) count, so another account cannot fake a review
+or an answer; no PR passes; a `gh` error blocks. Tests: [`tests/test_review_gate.py`](../tests/test_review_gate.py). It blocks once per stop, never loops. It is a reminder, not a security boundary.
 
 ## Why the local CLI, not the Codex GitHub app
 

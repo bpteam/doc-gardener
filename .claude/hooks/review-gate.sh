@@ -27,26 +27,29 @@ fail() { # stage project command output_file
 
 gate_review() { # the Codex review loop ran on the PR head (docs/review-loop.md)
   command -v gh >/dev/null || return 0
-  local branch pr num head tree out
+  local branch pr num head author tree out
   branch="$(git rev-parse --abbrev-ref HEAD)"
   [[ "$branch" == "${DEFAULT:-main}" || "$branch" == HEAD ]] && return 0
   out="$(mktemp)"
   # No PR yet is the only reason to skip; a gh or network error blocks (the review cannot be confirmed).
-  if ! pr="$(gh pr view "$branch" --json number,state,headRefOid 2>"$out")"; then
+  if ! pr="$(gh pr view "$branch" --json number,state,headRefOid,author 2>"$out")"; then
     grep -qi 'no pull requests found' "$out" && { rm -f "$out"; return 0; }
     fail review . "gh pr view $branch" "$out"
   fi
   [[ "$(jq -r .state <<<"$pr")" == OPEN ]] || { rm -f "$out"; return 0; }
-  num="$(jq -r .number <<<"$pr")" head="$(jq -r .headRefOid <<<"$pr")"
+  num="$(jq -r .number <<<"$pr")" head="$(jq -r .headRefOid <<<"$pr")" author="$(jq -r .author.login <<<"$pr")"
   if [[ "$(git rev-parse HEAD)" != "$head" ]]; then
     echo "Local HEAD is not the head of PR #$num: push, then run /loop /pr-review-loop $num." >"$out"
     fail review . "git push && /loop /pr-review-loop $num" "$out"
   fi
   tree="$(git rev-parse "$head^{tree}")"
   # Newest review whose commit has the same tree as the PR head (a squash keeps the tree, not the sha).
+  # Only the PR author's comments count: the loop posts from that account, and on a public repository anyone else
+  # could post a fake review or answer. GitHub logins are [A-Za-z0-9-], safe to put in the jq string.
   local comments verdict sha c
+  [[ "$author" =~ ^[A-Za-z0-9-]+$ ]] || { echo "Unexpected PR author login '$author'." >"$out"; fail review . "gh pr view $branch --json author" "$out"; }
   comments="$(gh api "repos/{owner}/{repo}/issues/$num/comments" --paginate \
-    --jq '.[] | {id, body: .body}' 2>"$out")" || fail review . "gh api repos/{owner}/{repo}/issues/$num/comments" "$out"
+    --jq ".[] | select(.user.login == \"$author\") | {id, body: .body}" 2>"$out")" || fail review . "gh api repos/{owner}/{repo}/issues/$num/comments" "$out"
   verdict="" sha="" at=-1
   local i=0
   while IFS= read -r c; do
