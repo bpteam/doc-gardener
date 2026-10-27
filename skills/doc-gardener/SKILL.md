@@ -48,7 +48,7 @@ A **project-agnostic** skill inspired by Karpathy's linked-knowledge / LLM Wiki 
 ## Documentation ↔ code synchronization (SYNC)
 
 1. `impact --root . --base <rev> --json`:
-   - `referencing_docs` — docs that link to or mention (as `path/like.ext`) a changed code path. Primary candidates; needs no config.
+   - `referencing_docs` — docs that link to or mention (as `path/like.ext`) a changed code path, including deleted code and the old path of a rename. Primary candidates; needs no config.
    - `documentation_candidates` — docs from configured `mappings`.
    - `docs_linking_to_changed_docs` — pages whose links/claims may need follow-up.
    - `unrouted_code_changes` — changed code no doc mentions. Decide whether that is fine (internal refactor) or a gap.

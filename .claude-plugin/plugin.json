@@ -1,6 +1,6 @@
 {
   "name": "doc-gardener",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Repository-agnostic Markdown knowledge base: guided setup, task routing, code-docs sync, audits, safe moves.",
   "author": {
     "name": "bpteam",
